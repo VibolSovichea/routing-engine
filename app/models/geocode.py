@@ -24,6 +24,7 @@ class GeocodeResponse(BaseModel):
     result: GeocodeResult | None
     provider: str = "google"
 
+
 class BatchGeocodeRequest(BaseModel):
     addresses: list[GeocodeRequest] = Field(..., min_length=1, max_length=100)
 
