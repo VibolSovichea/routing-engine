@@ -20,6 +20,7 @@ import time
 
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
+from app.core.errors import BadRequestError
 from app.models.sequencing import (
     DriverPreference,
     SequencingLeg,
@@ -38,14 +39,14 @@ def _validate_inputs(request: SequencingRequest) -> int:
     matrix = request.distances_meters
 
     if len(matrix) != n + 1 or any(len(row) != n + 1 for row in matrix):
-        raise ValueError(
+        raise BadRequestError(
             "distances_meters must be a square (N+1) x (N+1) matrix "
             "where index 0 is the start point and indices 1..N are the stops"
         )
 
     for i in range(n + 1):
         if matrix[i][i] != 0:
-            raise ValueError("distance matrix diagonal must be zero")
+            raise BadRequestError("distance matrix diagonal must be zero")
 
     return n
 
@@ -104,7 +105,7 @@ def solve_sequencing(
 
     if not solution:
         elapsed = time.perf_counter() - start_time
-        raise ValueError(
+        raise BadRequestError(
             f"sequencing solver failed to find a feasible route "
             f"after {elapsed:.2f}s"
         )

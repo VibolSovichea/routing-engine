@@ -15,6 +15,7 @@ import time
 
 from ortools.sat.python import cp_model
 
+from app.core.errors import BadRequestError
 from app.models.zoning import (
     ZoneGroup,
     ZoningLocation,
@@ -28,18 +29,18 @@ def _validate_inputs(request: ZoningRequest) -> int:
     matrix = request.distances_meters
 
     if len(matrix) != n or any(len(row) != n for row in matrix):
-        raise ValueError(
+        raise BadRequestError(
             "distances_meters must be a square N x N matrix matching locations"
         )
 
     if request.zone_count > n:
-        raise ValueError(
+        raise BadRequestError(
             "zone_count cannot exceed the number of locations"
         )
 
     for i in range(n):
         if matrix[i][i] != 0:
-            raise ValueError("distance matrix diagonal must be zero")
+            raise BadRequestError("distance matrix diagonal must be zero")
 
     return n
 
@@ -103,7 +104,7 @@ def solve_zoning(
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         elapsed = time.perf_counter() - start_time
-        raise ValueError(
+        raise BadRequestError(
             f"zoning solver failed to find a feasible solution "
             f"(status: {solver.status_name(status)})"
         )
