@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Solver defaults
     zone_time_limit_seconds: float = 10.0
+    sequence_time_limit_seconds: float = 5.0
 
 
 settings = Settings()
