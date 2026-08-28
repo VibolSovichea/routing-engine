@@ -20,5 +20,8 @@ class Settings(BaseSettings):
     # Defaults
     default_country_code: str = "KH"
 
+    # Solver defaults
+    zone_time_limit_seconds: float = 10.0
+
 
 settings = Settings()
