@@ -1,7 +1,5 @@
-import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
-from app.core.config import settings
 from app.models.geocode import (
     BatchGeocodeRequest,
     BatchGeocodeResponse,
@@ -15,28 +13,7 @@ router = APIRouter(prefix="/geocode", tags=["geocode"])
 
 @router.post("", response_model=GeocodeResponse)
 async def geocode(request: GeocodeRequest) -> GeocodeResponse:
-    provider = settings.geocode_provider or "google"
-    try:
-        return await geocode_address(request)
-    except httpx.HTTPStatusError as exc:
-        status = exc.response.status_code
-        if status == 401:
-            raise HTTPException(
-                status_code=502, detail=f"{provider} authentication failed"
-            ) from exc
-        if status == 429:
-            raise HTTPException(
-                status_code=503, detail=f"{provider} rate limit exceeded"
-            ) from exc
-        raise HTTPException(
-            status_code=502, detail=f"{provider} request failed ({status})"
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503, detail=f"Could not reach {provider}"
-        ) from exc
+    return await geocode_address(request)
 
 
 @router.post("/batch", response_model=BatchGeocodeResponse)

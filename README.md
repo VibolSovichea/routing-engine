@@ -69,16 +69,57 @@ The API docs are available at `http://localhost:8000/docs` (Swagger) or `/redoc`
 
 ## Configuration (`.env`)
 
+The service **fails fast at startup** if any required variable is missing.
+`extra="forbid"` means a misspelled/unknown variable is also an error.
+
 | Variable | Default | Description |
 |---|---|---|
-| `ORS_API_KEY` | — | OpenRouteService key for the distance matrix (`Authorization` header) |
+| `ORS_API_KEY` | — | **Required.** OpenRouteService key for the distance matrix (`Authorization` header) |
+| `GOOGLE_MAPS_API_KEY` | — | **Required.** Google Maps/Places key for geocoding |
+| `SERVICE_API_KEY` | — | **Required.** Shared key the NestJS backend sends via `X-API-Key` on every request |
 | `ORS_BASE_URL` | `https://api.openrouteservice.org` | ORS base URL |
-| `GOOGLE_MAPS_API_KEY` | — | Google Maps/Places key for geocoding |
 | `MAPBOX_ACCESS_TOKEN` | — | Optional; Mapbox is not currently used (see decisions) |
 | `GEOCODE_PROVIDER` | `google` | Geocoding provider selection |
 | `DEFAULT_COUNTRY_CODE` | `KH` | Default geocoding country bias |
 | `ZONE_TIME_LIMIT_SECONDS` | `10.0` | CP-SAT zoning solver time limit (fallback to best incumbent) |
 | `SEQUENCE_TIME_LIMIT_SECONDS` | `5.0` | TSP sequencing solver time limit |
+| `LOG_LEVEL` | `INFO` | Root log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `LOG_FORMAT` | `json` | `json` (structured JSON to stdout) or `text` (readable local output) |
+
+## Authentication
+
+All endpoints except `/health` (and the OpenAPI docs pages) require a static
+API key sent in the **`X-API-Key`** header. The NestJS backend must set this on
+every call using the `SERVICE_API_KEY` value. Missing and invalid keys both
+return `401` to avoid leaking which case occurred.
+
+## Logging
+
+The service emits **structured JSON logs** (one line per event) to stdout:
+
+- Per-request correlation via a `request_id` — accepted from the upstream
+  `X-Request-ID` header if present, otherwise auto-generated and echoed back
+  in the response header, so the NestJS service can correlate its calls.
+- Provider calls (ORS / Google) log status, counts, and outcomes.
+- Solver outcomes and the global error handler log status mapping.
+
+Set `LOG_FORMAT=text` for readable line-based output during local development.
+API keys and raw addresses are never logged.
+
+## Running with Docker
+
+```bash
+# Build and run via docker compose (reads real values from .env)
+make docker-up
+
+# Or build directly
+make docker-build
+docker run --rm -p 8000:8000 --env-file .env routing-engine:latest
+```
+
+The image runs as a non-root user, exposes `8000`, and includes a `/health`
+healthcheck. OR-Tools native bindings are installed in the build stage, so the
+solver imports are verified in the runtime image.
 
 ## API endpoints
 
@@ -139,10 +180,11 @@ Only **one** destination is sent at a time, sidestepping the ~10-waypoint limit 
 
 - One concern per file: models in `app/models/`, external API clients in `app/services/`, HTTP routes in `app/api/`, solver logic in `app/solvers/`.
 - Every external-facing feature gets: a Pydantic request/response schema in `models/`, a service function doing the real work, and a thin FastAPI router in `api/` that calls the service and translates errors to HTTP.
-- **Error handling**: service functions raise/let bubble either `httpx.HTTPStatusError` (for APIs with real HTTP status codes, e.g. ORS) or a custom exception (for APIs that return HTTP 200 always with an error in the JSON body, e.g. Google). The API route layer maps these to 502 (upstream failure/auth), 503 (rate limits/unreachable), 422 (bad input). A "no result found" (e.g. `ZERO_RESULTS`) is **not** an error — it's a normal 200 with a `null`/`None` result field.
+- **Error handling**: services raise *domain exceptions* defined in `app/core/errors.py` (`UpstreamAuthenticationError`, `UpstreamRateLimitError`, `UpstreamUnreachableError`, `UpstreamError`, `BadRequestError`). A single global exception handler in `main.py` maps them to HTTP (`UpstreamAuthError→502`, `RateLimit→503`, `Unreachable→503`, `UpstreamError→502`, `BadRequest→422`). Routers do **not** hand-roll `try/except` — they call the service and let the global handler respond. A "no result found" (e.g. `ZERO_RESULTS`) is **not** an error — it's a normal 200 with a `null`/`None` result field.
 - **Batch endpoints** use `asyncio.gather` + `asyncio.Semaphore` to cap concurrency, and catch per-item exceptions so one bad item doesn't fail the batch.
 - **GeoJSON-style APIs** (ORS) use `[longitude, latitude]` order — a common bug source.
 - **Google APIs** return `lat`/`lng` as named fields and may return HTTP 200 even on failure — check the JSON `status` field, don't rely on `raise_for_status()` alone.
+- **Config** is read via `get_settings()` (cached factory in `app/core/config.py`); never import a `settings` singleton. New env vars go in `.env.example` and `Settings`.
 
 ## Known decisions & rationale
 
@@ -154,4 +196,4 @@ Only **one** destination is sent at a time, sidestepping the ~10-waypoint limit 
 ## Roadmap notes
 
 - **Zone assignment (Phase 4)** is a frontend/NestJS concern — no endpoint here.
-- **Docker** is intentionally deferred until the OR-Tools solver features are proven locally (OR-Tools native bindings can be finicky in containers). With zoning + sequencing now working, containerizing would be the natural next step.
+- **Request authentication**, structured JSON logging, startup config validation, and Docker are implemented. Natural next steps are a test suite, real geocode confidence scoring, and migrating to the Google Places API v1 endpoint.
