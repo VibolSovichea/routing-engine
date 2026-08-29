@@ -85,6 +85,7 @@ The service **fails fast at startup** if any required variable is missing.
 | `SEQUENCE_TIME_LIMIT_SECONDS` | `5.0` | TSP sequencing solver time limit |
 | `LOG_LEVEL` | `INFO` | Root log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `LOG_FORMAT` | `json` | `json` (structured JSON to stdout) or `text` (readable local output) |
+| `CORS_ALLOW_ORIGINS` | — | Optional; comma-separated browser origins allowed to call the API directly (e.g. `*`, `http://localhost:5500`). Empty disables CORS. Only needed if the frontend/test harness calls the service from a browser.
 
 ## Authentication
 
@@ -172,7 +173,7 @@ Driver preference is a **hard fixed-first-stop constraint**: `outward_in` first 
 
 ### `POST /navigation` — next-stop deep link
 **Request**: app (`google_maps` | `waze`), optional driver `start`, the single next `destination`.
-**Response**: a deep link (e.g. `https://www.google.com/maps/dir/?origin=...&destination=...` or a Waze link).
+**Response**: a deep link (e.g. `https://www.google.com/maps/dir/?api=1&origin=...&destination=...&travelmode=driving&dir_action=navigate` or a Waze link).
 
 Only **one** destination is sent at a time, sidestepping the ~10-waypoint limit on consumer map apps. No route geometry is generated or stored — this is simple link building with no external API call.
 

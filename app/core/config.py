@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
 
+    cors_allow_origins: str = ""
+
     def required_keys(self) -> list[str]:
         missing: list[str] = []
         if not self.ors_api_key:

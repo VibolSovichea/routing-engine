@@ -24,7 +24,7 @@ async def get_distance_matrix(request: MatrixRequest) -> DistanceMatrixResponse:
     }
     settings = get_settings()
     headers = {
-        "Authorization": settings.ors_api_key,
+        "Authorization": settings.ors_api_key or "",
         "Content-Type": "application/json",
     }
 

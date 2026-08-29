@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.geocode import router as geocode_router
 from app.api.matrix import router as matrix_router
@@ -14,6 +15,13 @@ from app.core.logging import setup_logging
 from app.core.middleware import ApiKeyMiddleware, RequestIdMiddleware
 
 logger = logging.getLogger("routing_engine")
+
+
+def _cors_origins(settings) -> list[str]:
+    raw = (settings.cors_allow_origins or "").strip()
+    if not raw:
+        return []
+    return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 @asynccontextmanager
@@ -41,8 +49,23 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # CORSMiddleware is registered LAST so it is the OUTERMOST middleware.
+    # Starlette's add_middleware does insert(0), and build_middleware_stack
+    # wraps from innermost to outermost, so the LAST-registered middleware runs
+    # first. CORS must run before ApiKeyMiddleware, otherwise preflight OPTIONS
+    # would be rejected with 401 before CORS can return Access-Control-Allow-Origin.
     application.add_middleware(RequestIdMiddleware)
-    application.add_middleware(ApiKeyMiddleware, service_api_key=settings.service_api_key)
+    application.add_middleware(
+        ApiKeyMiddleware,
+        service_api_key=settings.service_api_key or "",
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins(settings),
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=False,
+    )
 
     register_exception_handlers(application)
 
