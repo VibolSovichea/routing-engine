@@ -167,9 +167,9 @@ Uses a **capacitated p-median/districting** formulation (not straight-line k-mea
 
 ### `POST /sequencing` — optimal per-zone order (OR-Tools TSP)
 **Request**: driver's live GPS `start_point`, the zone's `stops`, the distance (and optional duration) matrix, and a `driver_preference`.
-**Response**: optimal visit order, driving legs (start → stop₁ → stop₂ …), per-leg distances/durations, and totals.
+**Response**: optimal visit order, driving legs (start → stop₁ → stop₂ … → start), per-leg distances/durations, and totals.
 
-Driver preference is a **hard fixed-first-stop constraint**: `outward_in` first visits the farthest stop and works inward; `inward_out` first visits the nearest and works outward. The remaining route is then optimized as a TSP. Because `start_point` is a live position passed per call, the endpoint is stateless and can be re-run at dispatch time to re-sequence from the driver's current position.
+Driver preference is a **hard first/last-stop constraint**: `outward_in` first visits the farthest stop, finishes at the nearest (working inward), and the returned route ends with a leg back to the start point; `inward_out` does the reverse, nearest first and farthest last (working outward). The remaining route between the fixed ends is then optimized as a TSP. Because `start_point` is a live position passed per call, the endpoint is stateless and can be re-run at dispatch time to re-sequence from the driver's current position.
 
 ### `POST /navigation` — next-stop deep link
 **Request**: app (`google_maps` | `waze`), optional driver `start`, the single next `destination`.
