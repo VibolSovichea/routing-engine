@@ -1,16 +1,14 @@
-# Environments & secrets
-venv/
 .venv/
-.env
-
-# Python artifacts
+venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 *.egg-info/
-
-# Tooling
-.ropeproject/
+tests/
+.env
 .DS_Store
+.ropeproject/
+.git/
+.gitignore
